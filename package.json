@@ -1,0 +1,48 @@
+{
+  "name": "appleseed",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/krantz426/Appleseed.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+    "bugs": {
+    "url": "https://github.com/krantz426/Appleseed/issues"
+  },
+  "homepage": "https://github.com/krantz426/Appleseed#readme",
+  "dependencies": {
+    "@react-email/components": "^1.0.10",
+    "@supabase/ssr": "^0.10.0",
+    "@supabase/supabase-js": "^2.101.0",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vercel/og": "^0.11.1",
+    "autoprefixer": "^10.4.27",
+    "next": "^16.2.1",
+    "postcss": "^8.5.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "resend": "^6.10.0",
+    "stripe": "^21.0.1",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.1"
+  }
+}
