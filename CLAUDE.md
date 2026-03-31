@@ -1,67 +1,115 @@
 # Appleseed
 
-Automated teacher appreciation subscription service. Parents sign up once in September, pick a tier, and Appleseed delivers a gift card + personalized digital card to their child's teacher three times a year. The group gift flow lets a room parent create a pool, share a link, and collect contributions from the whole class.
+Automated teacher appreciation subscription service. V1 is the Group Gift MVP: a room parent creates a pool, shares a link, parents contribute via Stripe, and the teacher receives a gift card + branded digital card with all kids' names.
+
+Full subscription flow (Seed $99 / Bloom $149 / Harvest $199 per year) ships for September 2026 enrollment.
 
 ## Tech Stack
 
-- **Framework:** Next.js (App Router)
+- **Framework:** Next.js 15 (App Router, TypeScript strict)
 - **Hosting:** Vercel
-- **Database + Auth:** Supabase
-- **Payments:** Stripe (subscriptions + one-time group contributions)
-- **Email:** Resend (transactional)
-- **Gift Cards:** Tango Card API (or Tremendous, evaluate Week 1)
-- **Scheduled Jobs:** Vercel Cron
+- **Database + Auth:** Supabase (Postgres + RLS + Magic Link auth)
+- **Payments:** Stripe (Checkout Sessions for one-time contributions)
+- **Email:** Resend (transactional, React Email templates)
+- **Gift Cards:** Tremendous API (programmatic purchasing, 2000+ brands)
+- **Card Generation:** @vercel/og (Satori) for branded PNG cards
+- **Scheduled Jobs:** Vercel Cron (hourly pool deadline + delivery processing)
 - **AI Notes (V2):** Claude API
 
 ## Project Structure
 
 ```
 src/
-  app/           # Next.js App Router pages
-  components/    # React components
-  lib/           # Shared utilities, API clients, database queries
-  styles/        # Global styles
+├── app/
+│   ├── layout.tsx              # root: Playfair Display + DM Sans, cream bg
+│   ├── page.tsx                # landing page + waitlist
+│   ├── globals.css             # Tailwind v4 + CSS vars from DESIGN.md
+│   ├── p/[slug]/               # contribution page (public, mobile-first)
+│   ├── pool/new/               # create pool (auth required)
+│   ├── pool/[poolId]/manage/   # room parent dashboard (auth)
+│   ├── auth/                   # magic link login + callback
+│   ├── claim/[deliveryId]/     # teacher gift card claim
+│   ├── dashboard/              # room parent pool list
+│   └── api/                    # all API routes
+│       ├── pool/               # CRUD + by-slug lookup
+│       ├── contribute/         # Stripe Checkout Session creation
+│       ├── webhooks/stripe/    # payment webhook handler
+│       ├── waitlist/           # email collection
+│       ├── cron/close-pools/   # hourly deadline processing
+│       └── cron/deliver-gifts/ # gift card purchase + email delivery
+├── components/ui/              # button, input, card, progress-bar, badge
+├── lib/
+│   ├── supabase/               # client.ts, server.ts, admin.ts
+│   ├── stripe/                 # client.ts, checkout.ts, webhooks.ts
+│   ├── resend/                 # client.ts
+│   ├── tremendous/             # client.ts (with retry logic)
+│   ├── constants.ts            # fee %, amounts, occasions
+│   └── utils.ts                # formatCents, calculateFee, generateSlug
+└── middleware.ts               # auth check on protected routes
 ```
 
 ## Key Concepts
 
-- **Pool:** A group gift collection created by a room parent for a specific teacher + occasion
-- **Contribution:** A parent's payment into a pool (includes child name for the card)
-- **Subscription:** An individual parent's annual plan (Seed/Bloom/Harvest tier)
-- **Delivery:** A scheduled gift card purchase + digital card generation for a specific occasion
+- **Pool:** Group gift collection with a shareable slug URL at `/p/[slug]`
+- **Contribution:** Anonymous parent payment into a pool (child name for the card, amounts private)
+- **Delivery:** Gift card purchase + digital card generation + teacher email
+- **Subscription (V1.5):** Individual parent annual plan (Seed/Bloom/Harvest)
+
+## Database
+
+Schema: `supabase/migrations/001_initial_schema.sql`
+Tables: schools, teachers, parents, pools, contributions, deliveries, waitlist
+All amounts in cents (integer). Pool slug for shareable URLs.
+RLS: pools are public read, contributions never expose amounts to other parents.
 
 ## Development
 
 ```bash
 npm install
-npm run dev        # Start dev server at localhost:3000
+npm run dev        # Start dev server
+npm run build      # Production build
 ```
 
-Environment variables needed (see .env.example):
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `RESEND_API_KEY`
-- `TANGO_CARD_API_KEY`
+Environment variables (see .env.example):
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
+- `TREMENDOUS_API_KEY`, `TREMENDOUS_CAMPAIGN_ID`, `TREMENDOUS_API_URL`
+- `CRON_SECRET` (for Vercel Cron auth)
+- `NEXT_PUBLIC_APP_URL`
 
-## Design Doc
+## Key Design Decisions (from eng review)
 
-The approved design doc is at `~/.gstack/projects/krantz426-Appleseed/jayrosenkrantz-main-design-20260330-153324.md`. It contains the full product spec, data model, delivery flow, edge cases, and milestone calendar.
+1. **Pool URLs:** `/p/[slug]` for short text-message-friendly links
+2. **Gift card API:** Tremendous (self-serve signup, faster than Tango Card)
+3. **Contributor auth:** Fully anonymous. No accounts for contributing parents.
+4. **Pool minimum:** No minimum. Any amount collected gets delivered.
+5. **Amount privacy:** Show running total + family count (accept inference risk for social proof)
+6. **Schema:** Normalized (schools, teachers tables) for September subscription expansion
+7. **Platform fee:** 5% on top of contribution, transparent at checkout
+
+## Design Documents
+
+- **Design doc:** `~/.gstack/projects/krantz426-Appleseed/jayrosenkrantz-main-design-20260330-153324.md`
+- **Eng plan:** `~/.claude/plans/inherited-bouncing-matsumoto.md`
+- **Test plan:** `~/.gstack/projects/krantz426-Appleseed/jayrosenkrantz-main-eng-review-test-plan-20260330-171718.md`
+- **Design mockups:** `~/.gstack/projects/krantz426-Appleseed/designs/contribution-page-20260330/`
 
 ## Conventions
 
 - TypeScript strict mode
-- Tailwind CSS for styling
-- Supabase Row Level Security for all tables
+- Tailwind CSS v4 with design tokens in globals.css
+- Supabase Row Level Security on all tables
 - Stripe webhooks for payment event handling
 - All monetary amounts stored in cents (integer)
 - Dates in UTC, displayed in user's local timezone
+- Lazy initialization for API clients (Stripe, Tremendous) to avoid build-time env var errors
 
 ## Design System
+
 Always read DESIGN.md before making any visual or UI decisions.
-All font choices, colors, spacing, and aesthetic direction are defined there.
+Fonts: Playfair Display (display/hero), DM Sans (body/UI).
+Colors: primary #3d6b3d, accent #b8860b, bg #faf8f4, border #d4c5a9.
 Do not deviate without explicit user approval.
 In QA mode, flag any code that doesn't match DESIGN.md.
 
